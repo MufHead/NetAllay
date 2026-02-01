@@ -34,4 +34,5 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok:1.18.34")
     implementation("org.msgpack:msgpack-core:0.9.8")
     compileOnly("org.allaymc:protocol-extension:0.1.2")
+    compileOnly("com.google.code.gson:gson:2.10.1")
 }

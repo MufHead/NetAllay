@@ -10,7 +10,9 @@ import org.allaymc.api.server.Server;
 import org.allaymc.api.world.Dimension;
 import org.allaymc.api.world.World;
 import org.allaymc.netallay.codec.PyRpcCodec;
+import org.allaymc.netallay.config.NetAllayConfig;
 import org.allaymc.netallay.handler.EventListenerRegistry;
+import org.allaymc.netallay.shop.ShopManager;
 import org.allaymc.protocol.extension.packet.PyRpcPacket;
 
 import java.io.IOException;
@@ -58,6 +60,18 @@ public class NetAllay extends Plugin {
 
     private final EventListenerRegistry listenerRegistry = new EventListenerRegistry();
 
+    /**
+     * The shop manager for handling NetEase shop functionality.
+     */
+    @Getter
+    private ShopManager shopManager;
+
+    /**
+     * The plugin configuration.
+     */
+    @Getter
+    private NetAllayConfig config;
+
     @Override
     public void onLoad() {
         instance = this;
@@ -67,13 +81,35 @@ public class NetAllay extends Plugin {
     @Override
     public void onEnable() {
         Server.getInstance().getEventBus().registerListener(this);
+
+        // Load configuration
+        config = NetAllayConfig.load(pluginContainer.dataFolder());
+        pluginLogger.info("Configuration loaded.");
+
+        // Initialize shop manager
+        shopManager = new ShopManager(this);
+
+        // Apply config to shop manager
+        applyConfig();
+
         pluginLogger.info("NetAllay enabled! API ready for use.");
+        pluginLogger.info("Shop config: gameId={}, testServer={}, customShop={}",
+                config.getShop().getGameId().isEmpty() ? "(not set)" : config.getShop().getGameId(),
+                config.getShop().isTestServer(),
+                config.getShop().isUseCustomShop());
     }
 
     @Override
     public void onDisable() {
         Server.getInstance().getEventBus().unregisterListener(this);
         listenerRegistry.clear();
+
+        // Clean up shop manager
+        if (shopManager != null) {
+            shopManager.clearPlayerConfigs();
+            shopManager = null;
+        }
+
         pluginLogger.info("NetAllay disabled.");
         instance = null;
     }
@@ -402,6 +438,124 @@ public class NetAllay extends Plugin {
      */
     public int getRegisteredEventCount() {
         return listenerRegistry.getRegisteredEventCount();
+    }
+
+    // ==================== Configuration Methods ====================
+
+    /**
+     * Applies the current configuration to the shop manager.
+     */
+    private void applyConfig() {
+        if (shopManager != null && config != null) {
+            NetAllayConfig.ShopConfig shopConfig = config.getShop();
+            shopManager.setGameId(shopConfig.getGameId());
+            shopManager.setGameKey(shopConfig.getGameKey());
+            shopManager.setTestGameKey(shopConfig.getTestGameKey());
+            shopManager.setTestServer(shopConfig.isTestServer());
+            shopManager.setUseCustomShop(shopConfig.isUseCustomShop());
+            shopManager.setCacheTime(shopConfig.getCacheTime());
+            shopManager.setShopServerUrl(shopConfig.getShopServerUrl());
+            shopManager.setWebServerUrl(shopConfig.getWebServerUrl());
+
+            // Validate required fields
+            if (shopConfig.getGameId().isEmpty()) {
+                pluginLogger.warn("shop.gameId is not configured!");
+            }
+            if (!shopConfig.isTestServer() && shopConfig.getGameKey().isEmpty()) {
+                pluginLogger.warn("shop.gameKey is not configured for production server!");
+            }
+            if (shopConfig.isTestServer() && shopConfig.getTestGameKey().isEmpty()) {
+                pluginLogger.warn("shop.testGameKey is not configured for test server!");
+            }
+        }
+    }
+
+    /**
+     * Reloads the configuration from disk and applies it.
+     */
+    public void reloadConfig() {
+        config = NetAllayConfig.load(pluginContainer.dataFolder());
+        applyConfig();
+        pluginLogger.info("Configuration reloaded. Shop button visible: {}", !config.getShop().isUseCustomShop());
+    }
+
+    /**
+     * Saves the current configuration to disk.
+     */
+    public void saveConfig() {
+        if (config != null) {
+            config.save(pluginContainer.dataFolder());
+            pluginLogger.info("Configuration saved.");
+        }
+    }
+
+    // ==================== Shop Convenience Methods ====================
+
+    /**
+     * Sets whether to use custom shop mode.
+     * <p>
+     * When true, the default shop button is hidden and you control the shop UI yourself.
+     * When false, the official NetEase shop UI is shown.
+     * <p>
+     * This is a shortcut for {@code getShopManager().setUseCustomShop(useCustomShop)}.
+     *
+     * @param useCustomShop true to enable custom shop mode
+     */
+    public void enableCustomShopEntry(boolean useCustomShop) {
+        if (shopManager != null) {
+            shopManager.setUseCustomShop(useCustomShop);
+        }
+    }
+
+    /**
+     * Opens the shop UI for a player.
+     * <p>
+     * This is a shortcut for {@code getShopManager().openShop(player)}.
+     *
+     * @param player the player
+     * @return true if the packet was sent successfully
+     */
+    public boolean openShop(Player player) {
+        return shopManager != null && shopManager.openShop(player);
+    }
+
+    /**
+     * Closes the shop UI for a player.
+     * <p>
+     * This is a shortcut for {@code getShopManager().closeShop(player)}.
+     *
+     * @param player the player
+     * @return true if the packet was sent successfully
+     */
+    public boolean closeShop(Player player) {
+        return shopManager != null && shopManager.closeShop(player);
+    }
+
+    /**
+     * Shows a hint message to a player.
+     * <p>
+     * This is a shortcut for {@code getShopManager().showHint(player, text)}.
+     *
+     * @param player the player
+     * @param text   the hint text
+     * @return true if the packet was sent successfully
+     */
+    public boolean showHint(Player player, String text) {
+        return shopManager != null && shopManager.showHint(player, text);
+    }
+
+    /**
+     * Shows a two-line hint message to a player.
+     * <p>
+     * This is a shortcut for {@code getShopManager().showHint(player, head, tail)}.
+     *
+     * @param player the player
+     * @param head   the first line
+     * @param tail   the second line
+     * @return true if the packet was sent successfully
+     */
+    public boolean showHint(Player player, String head, String tail) {
+        return shopManager != null && shopManager.showHint(player, head, tail);
     }
 
     // ==================== Internal Event Handler ====================

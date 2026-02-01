@@ -1,0 +1,12 @@
+{
+  "shop": {
+    "gameId": "",
+    "gameKey": "",
+    "testGameKey": "",
+    "testServer": false,
+    "useCustomShop": false,
+    "cacheTime": 1,
+    "shopServerUrl": "",
+    "webServerUrl": ""
+  }
+}
