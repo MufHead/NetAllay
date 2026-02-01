@@ -338,7 +338,6 @@ self.SendToServer("RequestData", {"type": "player_info"})
 
 NetAllay 使用 MsgPack 格式编码数据，遵循网易 PyRpc 协议：
 
-- 消息 ID：`9753608`
 - 服务端到客户端事件类型：`ModEventS2C`
 - 客户端到服务端事件类型：`ModEventC2S`
 - 字符串编码：UTF-8 Binary 格式
